@@ -1,4 +1,147 @@
-# 螺絲與平面間隙幾何檢測工具
+# Screw-to-Surface Gap Geometric Inspection Tool / 螺絲與平面間隙幾何檢測工具
+
+**Language / 語言：** [English](#english) | [繁體中文](#繁體中文)
+
+---
+
+<a id="english"></a>
+
+# English
+
+This tool performs geometric inspection to check whether there is a gap between a screw or metal part and the surface of an object. Within a specified ROI (region of interest), it analyzes image edges and the dark-pixel ratio, locates the edge of the screw or metal part, and compares its distance to the object's reference surface line.
+
+When the measured gap exceeds the configured threshold, the result is `separated`: the screw has come apart from the surface. If the gap is within the threshold, the screw or object is still seated against the surface and the result is `locked`. If the image does not provide enough edge information, the result is `unknown`.
+
+## Files
+
+| File | Description |
+| --- | --- |
+| `app/src/lock_geometry.py` | Core inspection logic: ROI normalization, edge detection, gap calculation, dark-pixel ratio calculation, and result drawing. |
+| `app/src/lock_geometry_gui.py` | PyQt6 GUI: load images, open a camera, adjust the ROI and inspection parameters, and save annotated images. |
+| `app/src/roi_preview.py` | Interactive preview widget: draw, move, and resize the ROI with the mouse. |
+| `app/src/__init__.py` | Lets `app/src` be imported as a Python package. |
+| `app/Data/last_region.json` | Generated automatically. Stores the last ROI, reference lines, and parameters, and is restored when the GUI starts. |
+| `requirements.txt` | Python packages required to run the tool, with pinned versions. |
+
+## Requirements
+
+- Tested with Python 3.12.10
+- The GUI runs directly on Windows
+- A readable image or camera source is required
+
+Install the packages:
+
+```powershell
+python -m pip install -r requirements.txt
+```
+
+Start the GUI:
+
+```powershell
+python -m app.src.lock_geometry_gui
+```
+
+## How It Works
+
+For the ROI, the tool runs the following steps:
+
+1. Crop the input image to the specified ROI.
+2. Convert the ROI to grayscale.
+3. Compute the dark-pixel ratio using the dark threshold.
+4. Find horizontal edges with Gaussian blur and Canny edge detection.
+5. Split the ROI at the split line into the screw / metal part region and the surface reference region.
+6. Locate the metal edge and the surface reference line.
+7. Compute the pixel distance between them as `gap_px`.
+8. Compare `gap_px` with `gap_threshold_px` and output the seated or separated state.
+
+## Main Parameters
+
+| Parameter | Description |
+| --- | --- |
+| `x`, `y`, `w`, `h` | Relative position and size of the ROI in the image, in the range 0 to 1. |
+| `gap_threshold_px` | Gap threshold in pixels. A gap above this value is judged as separated. |
+| `dark_threshold_ratio` | Dark-pixel ratio threshold, used to help detect separation or shadow areas. |
+| `dark_gray_threshold` | Grayscale threshold for dark pixels. Pixels below this value are treated as dark. |
+| `mode` | Judgment mode: `gap`, `dark`, or `both`. |
+| `metal_edge_count` | Number of metal edge candidates to keep. |
+| `base_line_y` | Position of the surface reference line. If not set, it is searched automatically in the lower half of the ROI. |
+| `red_line_y` | Optional red-line limit. If the metal edge crosses this line, the result is judged abnormal immediately. |
+| `split_line_y` | Horizontal split line of the ROI, separating the metal edge search area from the surface reference search area. |
+
+## GUI Guide
+
+1. Click `Load Image` to load an image to inspect, or set the camera index and click `Start Camera` to use a live feed.
+2. Draw the ROI directly on the preview so that it contains both the screw and the object surface:
+   - Press and drag on an empty area to draw a new ROI.
+   - Drag inside the box to move it; drag an edge or corner handle to resize it.
+   - Arrow keys nudge by 1 px; `Shift` + arrow keys nudge by 10 px.
+   - The `ROI` panel in the sidebar shows the current pixel coordinates and 0–1 ratios, which can be used directly as the `--x --y --w --h` arguments in headless mode. Click `Reset ROI` to return to the default position.
+3. Set the judgment mode, gap threshold, dark-pixel ratio, and edge count under `Geometry Rules`.
+4. Set the reference line, red line, and split line under `Reference Lines`. With Auto, the tool finds the corresponding position itself.
+5. Check `Prediction` and the detail information on the right.
+6. Click `Save Overlay` to save an annotated image with the ROI, edge lines, and reference lines.
+7. The ROI, reference line settings, and parameters are saved automatically to `app/Data/last_region.json` after each adjustment and restored the next time the GUI starts. Delete that file to return to the defaults.
+
+## Python Example
+
+```python
+import cv2
+
+from app.src.lock_geometry import (
+    analyze_lock_geometry_regions,
+    default_lock_geometry_region,
+    draw_lock_geometry_overlay,
+)
+
+frame = cv2.imread("sample.jpg")
+
+regions = [
+    default_lock_geometry_region(
+        1,
+        {
+            "x": 0.35,
+            "y": 0.35,
+            "w": 0.25,
+            "h": 0.20,
+            "mode": "both",
+            "gap_threshold_px": 6,
+        },
+    )
+]
+
+analyses = analyze_lock_geometry_regions(frame, regions)
+annotated = draw_lock_geometry_overlay(frame.copy(), analyses)
+
+for analysis in analyses:
+    print(analysis.result.prediction, analysis.result.reason)
+
+cv2.imwrite("sample_geometry_overlay.jpg", annotated)
+```
+
+## Results
+
+| Result | Meaning |
+| --- | --- |
+| `locked` | The gap is within the threshold; the screw or object is still seated against the surface. |
+| `separated` | The gap exceeds the threshold, or the red-line limit was triggered; the screw has separated from the surface. |
+| `unknown` | Not enough edge or reference-line information could be obtained from the image; adjust the ROI, lighting, or parameters. |
+
+## Notes
+
+- `gap_threshold_px` depends on camera resolution, lens distance, and ROI size, so it must be calibrated for your actual setup.
+- Lighting changes affect edges and the dark-pixel ratio; inspect under fixed lighting.
+- If the screw edge or surface boundary is unclear, adjust the ROI, split line, or reference line settings.
+- This tool uses classical image processing and geometric rules; no trained model is required.
+
+## License
+
+Released under the [MIT License](LICENSE).
+
+---
+
+<a id="繁體中文"></a>
+
+# 繁體中文
 
 這份程式用於幾何檢測，主要目的為檢查螺絲或金屬件與物件平面之間是否存在間隙。程式會在指定的 ROI 區域內分析影像邊緣與暗部比例，找出螺絲或金屬件邊緣，再與物件平面的基準線進行距離比較。
 
@@ -124,3 +267,7 @@ cv2.imwrite("sample_geometry_overlay.jpg", annotated)
 - 光源變化會影響邊緣與暗部比例，建議在固定光源條件下檢測。
 - 若螺絲邊緣或平面邊界不清楚，請調整 ROI、分割線或基準線設定。
 - 此工具使用傳統影像處理與幾何規則，不需要訓練模型。
+
+## 授權
+
+本專案以 [MIT License](LICENSE) 授權釋出。
