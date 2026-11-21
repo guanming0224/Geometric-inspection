@@ -1,0 +1,56 @@
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ===== 虛擬環境 =====
+.venv/
+venv/
+env/
+ENV/
+
+# ===== 執行時產生的資料 =====
+# app/Data 只保留說明檔，程式自動產生的標註紀錄不進版控
+app/Data/*
+!app/Data/README.md
+
+# 暫存檔（寫入 last_region.json 時的中間檔）
+*.tmp
+
+# 程式輸出的標註影像
+*_geometry_overlay.*
+lock_geometry_overlay.*
+
+# ===== 測試用圖片 / 影片（若要放範例圖請自行取消忽略）=====
+# *.jpg
+# *.jpeg
+# *.png
+# *.bmp
+# *.mp4
+# *.avi
+
+# ===== 編輯器 / IDE =====
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ===== 作業系統 =====
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# ===== Claude Code =====
+.claude/
